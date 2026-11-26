@@ -66,9 +66,14 @@ input.fancy::-moz-range-thumb{width:18px;height:18px;border-radius:50%;backgroun
 input.fancy:focus{outline:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--ac) 25%,transparent)}
 .tx{margin:2px 0 14px;font-size:.92rem;color:var(--fg)}
 </style>
+<style>
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:99px;font-size:.88rem;opacity:0;pointer-events:none;transition:all .25s;z-index:20;max-width:90vw;text-align:center}#toast.on{opacity:1;transform:translate(-50%,0)}
+.hl{display:flex;flex-direction:column;gap:6px;margin-top:8px}.hi{text-align:left;border:1px solid var(--bd);background:var(--fld);color:var(--fg);padding:7px 10px;border-radius:10px;font-size:.78rem;transition:all .15s}.hi:hover{border-color:var(--ac);color:var(--ac)}
+#rmsg{min-height:1em}
+</style>
 </head>
 <body>
-<header><h1>🌀 RevCalc 3D UTS — Simulador de Sólidos de Revolución</h1>
+<header style="position:relative"><button class="btn" id="theme" style="position:absolute;top:16px;right:20px">🌙 Modo oscuro</button><h1>🌀 RevCalc 3D UTS — Simulador de Sólidos de Revolución</h1>
 <p>Cálculo Integral · Discos, Arandelas y Cascarones cilíndricos · Volumen exacto vs. aproximación de Simpson 1/3</p></header>
 <div class="wrap">
 <aside class="card">
@@ -77,13 +82,19 @@ input.fancy:focus{outline:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--ac) 
  <label id="lf">Función f(x) (exterior / altura)</label><input id="f" spellcheck="false">
  <div id="gbox"><label>Función g(x) (interior / inferior)</label><input id="g" spellcheck="false"></div>
  <div class="row"><div><label>Límite a</label><input id="a" type="text" spellcheck="false"></div><div><label>Límite b</label><input id="b" type="text" spellcheck="false"></div></div>
+ <label id="lec">Eje de giro: y =</label><input id="ec" type="text" value="0" spellcheck="false">
+ <button class="btn" id="roots" style="width:100%;margin-top:12px">🔍 Hallar límites por intersección</button><div id="rmsg" class="hint"></div>
  <div class="row"><div><label>Unidad</label><input id="u"></div><div><label>Particiones N (par)</label><input id="N" type="number" min="2" max="20000" step="2" value="100"></div></div>
+ <label>Densidad ρ (masa / unidad³)</label><input id="dens" type="number" step="any" value="1">
+ <h3>Compartir y guardar</h3>
+ <button class="btn" id="share" style="width:100%">🔗 Copiar enlace de este cálculo</button><input id="lnk" readonly hidden style="margin-top:8px;font-size:.75rem">
+ <div class="row" style="margin-top:8px"><button class="btn" id="hsave">📌 Guardar</button><button class="btn" id="hclr">🗑 Limpiar</button></div><div id="hl" class="hl"></div>
  <p class="hint">Funciones: sqrt, sin, cos, tan, exp, ln, abs… Potencias con ^ o **. Constantes: e, pi. Ej.: 3*x - x^2. Los límites aceptan expresiones: -sqrt(2), pi/2.</p>
 </aside>
 <main>
  <div class="info" id="info"></div><div id="err" class="msg"></div>
  <div class="met"><div class="m"><span id="l1">Volumen exacto</span><b id="v1">—</b></div><div class="m"><span id="l2">Volumen numérico (Simpson)</span><b id="v2">—</b></div><div class="m"><span>Error relativo</span><b id="v3">—</b></div></div>
- <div class="tabs" id="tabs"><button data-t="t3" class="on">🧊 Sólido 3D</button><button data-t="t2">📈 Región 2D</button><button data-t="tp">🧮 Procedimiento</button><button data-t="tc">📊 Convergencia</button></div>
+ <div class="tabs" id="tabs"><button data-t="t3" class="on">🧊 Sólido 3D</button><button data-t="t2">📈 Región 2D</button><button data-t="tp">🧮 Procedimiento</button><button data-t="tc">📊 Convergencia</button><button data-t="tv">✅ Verificación</button></div>
  <section class="card vp" id="vp">
  <div class="vg">
   <div class="ctl"><div class="rl"><span id="lc">Posición del corte x₀</span><b class="pill" id="vcut"></b></div>
@@ -92,6 +103,7 @@ input.fancy:focus{outline:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--ac) 
   <div class="ctl o3"><div class="rl"><span>Opacidad del sólido</span><b class="pill" id="vop"></b></div><input id="op" type="range" class="fancy" min="0.2" max="1" step="0.05" value="0.7"><div class="mm"><span>transparente</span><span>sólido</span></div></div>
   <div class="ctl"><div class="rl"><span>Alcance del eje X</span><b class="pill" id="vex"></b></div><input id="ex" type="range" class="fancy" min="1" max="5" step="0.25" value="1"><div class="mm"><span>×1</span><span>×5</span></div></div>
   <div class="ctl"><div class="rl"><span>Alcance del eje Y</span><b class="pill" id="vey"></b></div><input id="ey" type="range" class="fancy" min="1" max="5" step="0.25" value="1"><div class="mm"><span>×1</span><span>×5</span></div></div>
+ <div class="ctl o3"><div class="rl"><span>Construcción por elementos (n)</span><b class="pill" id="vnel"></b></div><div class="rr"><input id="nel" type="range" class="fancy" min="1" max="80" step="1" value="12"><button class="btn sm" id="build">▶ Construir</button></div><div class="mm"><span id="rinfo"></span><span></span></div></div>
  </div>
  <div class="tg">
   <label class="sw"><input id="cutOn" type="checkbox" checked><i></i><span id="lcut">Mostrar sección transversal</span></label>
@@ -99,14 +111,17 @@ input.fancy:focus{outline:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--ac) 
   <label class="sw o3"><input id="mesh" type="checkbox" checked><i></i><span>Malla</span></label>
   <label class="sw o3"><input id="open" type="checkbox"><i></i><span>Abrir sólido (90°)</span></label>
   <label class="sw o3"><input id="grid" type="checkbox" checked><i></i><span>Cuadrícula</span></label>
+  <label class="sw o3"><input id="riem" type="checkbox"><i></i><span>Aproximar con n elementos</span></label>
  </div>
 </section>
-<div class="card" id="t3"><div class="tb"><button class="btn" id="rst">↺ Restablecer vista</button><button class="btn" id="auto">⟳ Rotación automática</button></div><canvas id="p3" class="plot" style="cursor:grab"></canvas><div class="hint">En rojo: sección (o cascarón) en la posición elegida. Verde: radio interior / radio del cascarón. Los ejes x, y, z muestran las medidas del sólido.</div></div>
- <div class="card" id="t2" hidden><canvas id="p2" class="plot s"></canvas></div>
+<div class="card" id="t3"><div class="tb"><button class="btn" id="rst">↺ Restablecer vista</button><button class="btn" id="auto">⟳ Rotación automática</button><button class="btn" id="png3">⬇ Descargar PNG</button></div><canvas id="p3" class="plot" style="cursor:grab"></canvas><div class="hint">En rojo: sección (o cascarón) en la posición elegida. Verde: radio interior / radio del cascarón. Los ejes x, y, z muestran las medidas del sólido.</div></div>
+ <div class="card" id="t2" hidden><div class="tb"><button class="btn" id="png2">⬇ Descargar PNG</button></div><canvas id="p2" class="plot s"></canvas></div>
  <div class="card" id="tp" hidden><div id="proc"></div></div>
- <div class="card" id="tc" hidden><table id="tbl"></table><canvas id="pc" class="plot s" style="height:360px"></canvas>
+ <div class="card" id="tc" hidden><div class="tb"><button class="btn" id="pngc">⬇ Descargar PNG</button><button class="btn" id="csv">📋 Copiar tabla</button></div><table id="tbl"></table><canvas id="pc" class="plot s" style="height:360px"></canvas>
   <div class="hint">Simpson converge como O(h⁴) si f es suave; cerca de puntos con derivada infinita (p. ej. √(9−x²) en x = 3) converge más lento.</div></div>
+<div class="card" id="tv" hidden><div class="tb"><button class="btn" id="cpv">📋 Copiar resultados</button></div><div id="pv"></div></div>
 </main>
+<div id="toast"></div>
 </div>
 <script>
 const $=id=>document.getElementById(id),PI=Math.PI;
@@ -130,6 +145,8 @@ function compile(src){
   throw Error('Expresión inválida cerca de «'+(c||'fin')+'».')};
  const f=expr();if(i<s.length)throw Error('Expresión inválida cerca de «'+s[i]+'».');return f}
 /* ---------- Matemática ---------- */
+const trap=(g,a,b,N)=>{const h=(b-a)/N;let s=(g(a)+g(b))/2;for(let k=1;k<N;k++)s+=g(a+k*h);return s*h};
+const midp=(g,a,b,N)=>{const h=(b-a)/N;let s=0;for(let k=0;k<N;k++)s+=g(a+(k+.5)*h);return s*h};
 const simpson=(g,a,b,N)=>{N=Math.round(N);if(N%2)N++;const h=(b-a)/N;let s=g(a)+g(b);for(let k=1;k<N;k++)s+=(k%2?4:2)*g(a+k*h);return s*h/3};
 function tanhSinh(g,a,b){const c=(a+b)/2,d=(b-a)/2,h=1/32;let s=0;for(let k=-170;k<=170;k++){const t=k*h,u=PI/2*Math.sinh(t),x=c+d*Math.tanh(u);if(x<=a||x>=b)continue;const y=g(x);if(isFinite(y))s+=PI/2*Math.cosh(t)/Math.cosh(u)**2*y}return s*h*d}
 const fmt=(v,n=6)=>Number.isFinite(v)?v.toFixed(n):'—',errR=(n,e)=>Math.abs(n-e)/Math.abs(e)*100;
@@ -137,9 +154,10 @@ const fmt=(v,n=6)=>Number.isFinite(v)?v.toFixed(n):'—',errR=(n,e)=>Math.abs(n-
 const lim=id=>{try{return compile($(id).value)(0)}catch(x){return NaN}},pv=s=>compile(String(s))(0);
 function fillR(el){el.style.setProperty('--p',((el.value-el.min)/((el.max-el.min)||1)*100)+'%')}
 function sync(){const u=$('u').value||'u',f2=v=>String(+(+v).toFixed(3)).replace('.',',');
- ['cut','op','ex','ey'].forEach(i=>fillR($(i)));
+ ['cut','op','ex','ey','nel'].forEach(i=>fillR($(i)));
  $('vcut').textContent=f2($('cut').value)+' '+u;$('cmin').textContent=f2($('cut').min);$('cmax').textContent=f2($('cut').max);
- $('vop').textContent=Math.round($('op').value*100)+' %';$('vex').textContent='×'+$('ex').value;$('vey').textContent='×'+$('ey').value}
+ $('vop').textContent=Math.round($('op').value*100)+' %';$('vex').textContent='×'+$('ex').value;$('vey').textContent='×'+$('ey').value;$('vnel').textContent=$('nel').value;
+ if(S&&$('riem').checked){const n=+$('nel').value,v=midp(S.I,S.a,S.b,n);$('rinfo').textContent='Σ de '+n+' elementos ≈ '+fmt(v,4)+' '+u+'³ · error '+fmt(errR(v,S.Vref),4)+' %'}else $('rinfo').textContent='Activa «Aproximar con n elementos»'}
 const EX=[
 {n:'Ejemplo 1 · Discos — Lente de sensor óptico',m:'Discos',f:'x*sqrt(4-x)',g:'',a:'0',b:'4',u:'cm',c:2.2,V:()=>64*PI/3,
  t:'<b>Lente concentrador frontal de un módulo receptor (hardware óptico).</b> El perfil radial está delimitado por y = x√(4 − x) y el eje X. Se hallan los límites igualando las funciones y se calcula el volumen de resina óptica al rotar la región alrededor del <b>eje X</b>.',
@@ -154,25 +172,29 @@ const EX=[
 {n:'Personalizado',m:'Discos',f:'sqrt(x)',g:'x/4',a:'0',b:'4',u:'u',c:2,custom:1,t:'Escribe tu propia función, elige el método y los límites (aceptan expresiones como -sqrt(2) o pi/2). El volumen de referencia se calcula con integración numérica de alta precisión.'}];
 EX.forEach((e,i)=>$('ej').add(new Option(e.n,i)));
 let S=null,tab='t3';
-function load(){const e=EX[$('ej').value];cam.yaw=e.m=='Cascarones'?.7:.6;cam.pit=.45;cam.zoom=1;$('metodo').value=e.m;$('metodo').disabled=!e.custom;$('f').value=e.f;$('g').value=e.g||'x/4';$('a').value=e.a;$('b').value=e.b;$('u').value=e.u;$('info').innerHTML=e.t;setRange(e.c);update()}
+function load(){const e=EX[$('ej').value];cam.yaw=e.m=='Cascarones'?.7:.6;cam.pit=.45;cam.zoom=1;$('metodo').value=e.m;$('metodo').disabled=!e.custom;$('f').value=e.f;$('g').value=e.g||'x/4';$('a').value=e.a;$('b').value=e.b;$('u').value=e.u;$('ec').value='0';$('rmsg').textContent='';$('info').innerHTML=e.t;setRange(e.c);update()}
 function setRange(c){const a=lim('a'),b=lim('b'),r=$('cut');if(!isFinite(a)||!isFinite(b))return;r.min=a;r.max=Math.max(b,a+1e-3);r.step=(r.max-a)/200;r.value=Math.min(Math.max(c,a),r.max)}
 /* ---------- Cálculo ---------- */
 function update(){
  const E=$('err');E.textContent='';
  try{
-  const e=EX[$('ej').value],m=$('metodo').value,a=lim('a'),b=lim('b'),N=+$('N').value||100,u=$('u').value||'u';
+  const e=EX[$('ej').value],m=$('metodo').value,a=lim('a'),b=lim('b'),ec=lim('ec'),N=+$('N').value||100,u=$('u').value||'u';
   $('gbox').hidden=m=='Discos';$('lcut').textContent=m=='Cascarones'?'Mostrar cascarón diferencial':'Mostrar sección transversal';
-  $('lc').textContent=m=='Cascarones'?'Radio r₀ del cascarón':'Posición del corte x₀';
+  $('lc').textContent=m=='Cascarones'?'Radio r₀ del cascarón':'Posición del corte x₀';$('lec').textContent=m=='Cascarones'?'Eje de giro: x =':'Eje de giro: y =';
   if(!isFinite(a)||!isFinite(b))throw Error('Los límites deben ser números o expresiones válidas (ej.: -sqrt(2)).');
+  if(!isFinite(ec))throw Error('El eje de giro debe ser un número o expresión válida (ej.: 0, 2, -1).');
   if(!(b>a))throw Error('El límite b debe ser mayor que a.');
   const f=compile($('f').value),g=m!='Discos'?compile($('g').value):()=>0;
-  let warn='';
-  for(let k=0;k<=300;k++){const x=a+(b-a)*k/300,y=f(x),z=g(x);if(!isFinite(y)||!isFinite(z))throw Error('La función no es real/finita en todo [a, b] (falla cerca de x = '+x.toFixed(3)+').');if(m!='Discos'&&y<z-1e-9)warn='Se requiere f(x) ≥ g(x) en [a, b]; el resultado puede no ser válido.';}
-  if(m=='Cascarones'&&a<0)warn='Para cascarones se requiere a ≥ 0.';
-  const I=m=='Discos'?x=>PI*f(x)**2:m=='Arandelas'?x=>PI*(f(x)**2-g(x)**2):x=>2*PI*x*(f(x)-g(x));
-  const preset=!e.custom&&$('f').value==e.f&&($('g').value==e.g||m=='Discos')&&Math.abs(a-pv(e.a))<1e-9&&Math.abs(b-pv(e.b))<1e-9&&m==e.m;
+  let warn='',cross=false;
+  for(let k=0;k<=300;k++){const x=a+(b-a)*k/300,y=f(x),z=g(x);if(!isFinite(y)||!isFinite(z))throw Error('La función no es real/finita en todo [a, b] (falla cerca de x = '+x.toFixed(3)+').');
+   if(m!='Discos'&&y<z-1e-9)warn='Se requiere f(x) ≥ g(x) en [a, b]; el resultado puede no ser válido.';if(m!='Cascarones'&&(y-ec)*(z-ec)<-1e-9)cross=true}
+  if(m=='Cascarones'&&a<ec-1e-9&&ec<b-1e-9)cross=true;
+  if(cross)throw Error('El eje de giro atraviesa la región. Elige un eje que no la corte (si no, los dos lados se superponen).');
+  const rr=x=>{const d1=Math.abs(f(x)-ec),d2=Math.abs(g(x)-ec);return d1>d2?[d1,d2]:[d2,d1]};
+  const I=m=='Cascarones'?x=>2*PI*Math.abs(x-ec)*(f(x)-g(x)):x=>{const q=rr(x);return PI*(q[0]*q[0]-q[1]*q[1])};
+  const preset=!e.custom&&$('f').value==e.f&&($('g').value==e.g||m=='Discos')&&Math.abs(a-pv(e.a))<1e-9&&Math.abs(b-pv(e.b))<1e-9&&m==e.m&&Math.abs(ec)<1e-12;
   const Vref=preset?e.V():tanhSinh(I,a,b),Vn=simpson(I,a,b,N);
-  S={e,m,a,b,N,u,f,g,I,Vref,Vn,preset,warn,fs:$('f').value,gs:m=='Discos'?'0':$('g').value,at:$('a').value,bt:$('b').value};
+  S={e,m,a,b,ec,ect:$('ec').value,N,u,f,g,rr,I,Vref,Vn,preset,warn,fs:$('f').value,gs:m=='Discos'?'0':$('g').value,at:$('a').value,bt:$('b').value,dens:+$('dens').value||1};
   $('l1').textContent=preset?'Volumen exacto (analítico)':'Volumen de referencia (alta precisión)';
   $('l2').textContent='Volumen numérico (Simpson, N='+(N+N%2)+')';
   $('v1').textContent=fmt(Vref)+' '+u+'³';$('v2').textContent=fmt(Vn)+' '+u+'³';$('v3').textContent=fmt(errR(Vn,Vref))+' %';
@@ -197,30 +219,42 @@ function addGrid(P,U,V,fn,o){
 const AXC={x:'#e11d48',y:'#16a34a',z:'#2563eb'};
 function nice(lo,hi,n){const st=Math.pow(10,Math.floor(Math.log10((hi-lo)/n))),q=(hi-lo)/n/st,s=(q<1.5?1:q<3?2:q<7?5:10)*st,r=[];for(let v=Math.ceil(lo/s-1e-9)*s;v<=hi+1e-9;v+=s)r.push(+v.toPrecision(12));return r}
 function buildScene(){
- const{m,a,b,f,g,u}=S,op=+$('op').value,T=$('open').checked?1.5*PI:2*PI,c=+$('cut').value,cut=$('cutOn').checked,sR=$('rad').checked,th=lin(0,T,64),P=[],L=[],TX=[],cs=Math.cos,sn=Math.sin,cap=[120,165,235],red=[239,68,68];
- const ln=(pts,col,w)=>L.push({pts,col,w}),n3=v=>String(+v.toFixed(3)).replace('.',',')+' '+u;let names;
+ const{m,a,b,f,g,u,ec,rr}=S,op=+$('op').value,T=$('open').checked?1.5*PI:2*PI,c=+$('cut').value,riem=$('riem').checked,cut=$('cutOn').checked&&!riem,sR=$('rad').checked,nE=Math.max(1,+$('nel').value|0),
+  th=lin(0,T,riem?40:64),P=[],L=[],TX=[],cs=Math.cos,sn=Math.sin,cap=[120,165,235],red=[239,68,68],xs=lin(a,b,60),pad0=(b-a)*.12,sh=Math.abs(ec)>1e-12,dx=(b-a)/nE,ca=Math.min(1,op*.85),el=i=>ramp(VIR,(i+.5)/nE);
+ const ln=(pts,col,w,d)=>L.push({pts,col,w,d}),n3=v=>String(+v.toFixed(3)).replace('.',',')+' '+u;let names;
  if(m!='Cascarones'){
-  const xs=lin(a,b,60),ca=Math.min(1,op*.85);
-  addGrid(P,th,xs,(t,x)=>[x,f(x)*cs(t),f(x)*sn(t)],{cs:VIR,by:0,a:op});
-  if(m=='Arandelas')addGrid(P,th,xs,(t,x)=>[x,g(x)*cs(t),g(x)*sn(t)],{cs:PLA,by:0,a:Math.min(1,op+.25)});
-  const ann=(x0,col,al)=>addGrid(P,th,[m=='Arandelas'?g(x0):0,f(x0)],(t,r)=>[x0,r*cs(t),r*sn(t)],{col,a:al});
-  ann(a,cap,ca);ann(b,cap,ca);
-  ln(xs.map(x=>[x,f(x),0]),'#0f172a',3);if(m=='Arandelas')ln(xs.map(x=>[x,g(x),0]),'#0f172a',3);
-  if(cut){const R=f(c),r=m=='Arandelas'?g(c):0;ann(c,red,.92);
-   const cr=q=>ln(th.map(t=>[c,q*cs(t),q*sn(t)]),'#991b1b',2.5);cr(R);if(r>0)cr(r);
-   if(sR){if(r>0)ln([[c,0,0],[c,r,0]],'#16a34a',4);ln([[c,r,0],[c,R,0]],'#dc2626',4.5);
-    TX.push({p:[c,R,0],t:'R = '+n3(R),c:'#dc2626'});if(r>0)TX.push({p:[c,r/2,0],t:'r = '+n3(r),c:'#16a34a'})}}
+  const Y=(x,t,r)=>[x,ec+r*cs(t),r*sn(t)],hasIn=xs.some(x=>rr(x)[1]>1e-9);
+  if(!riem){
+   addGrid(P,th,xs,(t,x)=>Y(x,t,rr(x)[0]),{cs:VIR,by:0,a:op});
+   if(hasIn)addGrid(P,th,xs,(t,x)=>Y(x,t,rr(x)[1]),{cs:PLA,by:0,a:Math.min(1,op+.25)});
+   const ann=(x0,col,al)=>addGrid(P,th,[rr(x0)[1],rr(x0)[0]],(t,r)=>Y(x0,t,r),{col,a:al});
+   ann(a,cap,ca);ann(b,cap,ca);
+   if(cut){const[R,r]=rr(c);ann(c,red,.92);const cr=q=>ln(th.map(t=>Y(c,t,q)),'#991b1b',2.5);cr(R);if(r>0)cr(r);
+    if(sR){if(r>0)ln([[c,ec,0],[c,ec+r,0]],'#16a34a',4);ln([[c,ec+r,0],[c,ec+R,0]],'#dc2626',4.5);
+     TX.push({p:[c,ec+R,0],t:'R = '+n3(R),c:'#dc2626'});if(r>0)TX.push({p:[c,ec+r/2,0],t:'r = '+n3(r),c:'#16a34a'})}}
+  }else for(let i=0;i<nE;i++){const x0=a+i*dx,x1=x0+dx,q=rr(x0+dx/2),R=q[0],r=q[1],col=el(i);
+   addGrid(P,th,[x0,x1],(t,x)=>Y(x,t,R),{col,a:op});
+   if(r>1e-9)addGrid(P,th,[x0,x1],(t,x)=>Y(x,t,r),{col:col.map(v=>v*.6),a:op});
+   [x0,x1].forEach(x=>addGrid(P,th,[r,R],(t,s)=>Y(x,t,s),{col,a:op}))}
+  ln(xs.map(x=>[x,f(x),0]),'#0f172a',3);if(m=='Arandelas'||(m=='Discos'&&sh))ln(xs.map(x=>[x,g(x),0]),'#0f172a',3);
+  if(sh){ln([[a-pad0,ec,0],[b+pad0,ec,0]],'#f59e0b',3,[9,6]);TX.push({p:[b+pad0,ec,0],t:'eje de giro y = '+n3(ec),c:'#b45309'})}
   names=['x','y','z'];
  }else{
-  const rs=lin(a,b,60),cyl=(r,z0,z1,col,al)=>addGrid(P,th,[z0,z1],(t,z)=>[r*cs(t),r*sn(t),z],{col,a:al}),g0=Math.max(...rs.map(r=>Math.abs(g(r))))<1e-9,ca=Math.min(1,op*.85);
-  addGrid(P,th,rs,(t,r)=>[r*cs(t),r*sn(t),f(r)],{cs:VIR,by:2,a:op});
-  if(g0)addGrid(P,th,[a,b],(t,r)=>[r*cs(t),r*sn(t),0],{col:cap,a:Math.min(1,op*.6)});
-  else addGrid(P,th,rs,(t,r)=>[r*cs(t),r*sn(t),g(r)],{cs:PLA,by:2,a:Math.min(1,op+.2)});
-  [a,b].forEach(r=>{if(r>0&&Math.abs(f(r)-g(r))>1e-9)cyl(r,g(r),f(r),cap,ca)});
-  ln(rs.map(r=>[r,0,f(r)]),'#0f172a',3);if(!g0)ln(rs.map(r=>[r,0,g(r)]),'#0f172a',3);
-  if(cut){const zf=f(c),zg=g(c),hh=zf-zg;cyl(c,zg,zf,red,.92);ln(th.map(t=>[c*cs(t),c*sn(t),zf]),'#991b1b',2.5);if(!g0)ln(th.map(t=>[c*cs(t),c*sn(t),zg]),'#991b1b',2.5);
-   if(sR){ln([[0,0,zg],[c,0,zg]],'#16a34a',4);ln([[c,0,zg],[c,0,zf]],'#dc2626',4.5);
-    TX.push({p:[c/2,0,zg],t:'r = x₀ = '+n3(c),c:'#16a34a'},{p:[c,0,(zf+zg)/2],t:'h = '+(g0?'f(x₀)':'f(x₀) − g(x₀)')+' = '+n3(hh),c:'#dc2626'})}}
+  const rho=x=>Math.abs(x-ec),Pt=(x,t,z)=>[ec+rho(x)*cs(t),rho(x)*sn(t),z],g0=Math.max(...xs.map(x=>Math.abs(g(x))))<1e-9,cyl=(x,z0,z1,col,al)=>addGrid(P,th,[z0,z1],(t,z)=>Pt(x,t,z),{col,a:al});
+  if(!riem){
+   addGrid(P,th,xs,(t,x)=>Pt(x,t,f(x)),{cs:VIR,by:2,a:op});
+   if(g0)addGrid(P,th,xs,(t,x)=>Pt(x,t,0),{col:cap,a:Math.min(1,op*.6)});
+   else addGrid(P,th,xs,(t,x)=>Pt(x,t,g(x)),{cs:PLA,by:2,a:Math.min(1,op+.2)});
+   [a,b].forEach(x=>{if(rho(x)>1e-9&&Math.abs(f(x)-g(x))>1e-9)cyl(x,g(x),f(x),cap,ca)});
+   if(cut){const zf=f(c),zg=g(c),hh=zf-zg,xr=ec+rho(c);cyl(c,zg,zf,red,.92);ln(th.map(t=>Pt(c,t,zf)),'#991b1b',2.5);if(!g0)ln(th.map(t=>Pt(c,t,zg)),'#991b1b',2.5);
+    if(sR){ln([[ec,0,zg],[xr,0,zg]],'#16a34a',4);ln([[xr,0,zg],[xr,0,zf]],'#dc2626',4.5);
+     TX.push({p:[(ec+xr)/2,0,zg],t:'r = '+(sh?'':'x₀ = ')+n3(rho(c)),c:'#16a34a'},{p:[xr,0,(zf+zg)/2],t:'h = '+(g0?'f(x₀)':'f(x₀) − g(x₀)')+' = '+n3(hh),c:'#dc2626'})}}
+  }else for(let i=0;i<nE;i++){const x0=a+i*dx,x1=x0+dx,xm=x0+dx/2,r0=rho(x0),r1=rho(x1),rl=Math.min(r0,r1),rh=Math.max(r0,r1),zf=f(xm),zg=g(xm),col=el(i);
+   addGrid(P,th,[zg,zf],(t,z)=>[ec+rh*cs(t),rh*sn(t),z],{col,a:op});
+   if(rl>1e-9)addGrid(P,th,[zg,zf],(t,z)=>[ec+rl*cs(t),rl*sn(t),z],{col:col.map(v=>v*.6),a:op});
+   [zf,zg].forEach(z=>addGrid(P,th,[rl,rh],(t,s)=>[ec+s*cs(t),s*sn(t),z],{col,a:op}))}
+  ln(xs.map(x=>[ec+rho(x),0,f(x)]),'#0f172a',3);if(!g0)ln(xs.map(x=>[ec+rho(x),0,g(x)]),'#0f172a',3);
+  if(sh){const z0=Math.min(0,...xs.map(g)),z1=Math.max(...xs.map(f))*1.1;ln([[ec,0,z0],[ec,0,z1]],'#f59e0b',3,[9,6]);TX.push({p:[ec,0,z1],t:'eje de giro x = '+n3(ec),c:'#b45309'})}
   names=['x','z','y'];
  }
  const pts=[];P.forEach(p=>p.q.forEach(v=>pts.push(v)));L.forEach(l=>l.pts.forEach(v=>pts.push(v)));
@@ -243,7 +277,7 @@ function draw3d(){
   ctx.beginPath();ctx.moveTo(sx(v[0]),sY(v[0]));for(let j=1;j<4;j++)ctx.lineTo(sx(v[j]),sY(v[j]));ctx.closePath();ctx.fillStyle=col;ctx.fill();
   ctx.strokeStyle=mesh?'rgba(15,23,42,.3)':col;ctx.lineWidth=mesh?.5:.7;ctx.stroke()}
  ctx.lineJoin='round';ctx.lineCap='round';
- for(const l of sc.L){ctx.strokeStyle=l.col;ctx.lineWidth=l.w;ctx.beginPath();l.pts.map(pr).forEach((q,i)=>ctx[i?'lineTo':'moveTo'](sx(q),sY(q)));ctx.stroke()}
+ for(const l of sc.L){ctx.strokeStyle=l.col;ctx.lineWidth=l.w;ctx.setLineDash(l.d||[]);ctx.beginPath();l.pts.map(pr).forEach((q,i)=>ctx[i?'lineTo':'moveTo'](sx(q),sY(q)));ctx.stroke();ctx.setLineDash([])}
  /* ejes con medidas (estilo GeoGebra) */
  ctx.font='11px system-ui';ctx.textAlign='center';
  for(let i=0;i<3;i++){const[lo,hi]=sc.rg[i],nm=sc.names[i],col=AXC[nm],j=(i+1)%3,e=sc.R*.018,at=(v,d)=>{const q=[0,0,0];q[i]=v;if(d)q[j]=d;return pr(q)};
@@ -278,11 +312,13 @@ function ggFrame(cv,x0,x1,y0,y1){
   ctx.fillText('0',ox-8,oy+16);ctx.font='italic bold 15px Cambria,serif';ctx.textAlign='left';ctx.fillText('x',w-M/2-2,oy-10);ctx.fillText('y',ox+10,M/2+8)}}}
 function draw2d(){
  if(!S)return;const{m,a,b,f,g,u}=S,c=+$('cut').value,xs=lin(a,b,300),ys=xs.map(f),gs=m!='Discos'?xs.map(g):xs.map(()=>0);
- const ymin=Math.min(0,...ys,...gs),ymax=Math.max(0,...ys,...gs),py=(ymax-ymin)*.1||1,px=(b-a)*.08;
- const gw=(lo,hi,k)=>{const d=(hi-lo)*(k-1)/2;return[lo-d,hi+d]},X2=gw(Math.min(a,0)-px,b+px,+$('ex').value||1),Y2=gw(ymin-py,ymax+py,+$('ey').value||1),F=ggFrame($('p2'),X2[0],X2[1],Y2[0],Y2[1]);if(!F)return;const{ctx,X,Y}=F;
+ const ec=S.ec,ymin=Math.min(0,...ys,...gs,m!='Cascarones'?ec:0),ymax=Math.max(0,...ys,...gs,m!='Cascarones'?ec:0),py=(ymax-ymin)*.1||1,px=(b-a)*.08;
+ const gw=(lo,hi,k)=>{const d=(hi-lo)*(k-1)/2;return[lo-d,hi+d]},X2=gw(Math.min(a,0,m=='Cascarones'?ec:0)-px,Math.max(b,m=='Cascarones'?ec:b)+px,+$('ex').value||1),Y2=gw(ymin-py,ymax+py,+$('ey').value||1),F=ggFrame($('p2'),X2[0],X2[1],Y2[0],Y2[1]);if(!F)return;const{ctx,X,Y}=F;
  ctx.beginPath();xs.forEach((x,i)=>ctx[i?'lineTo':'moveTo'](X(x),Y(ys[i])));for(let i=xs.length-1;i>=0;i--)ctx.lineTo(X(xs[i]),Y(gs[i]));ctx.closePath();
  ctx.fillStyle=m=='Arandelas'?'rgba(56,189,248,.35)':m=='Cascarones'?'rgba(251,146,60,.4)':'rgba(52,211,153,.38)';ctx.fill();
  F.axes();
+ ctx.save();ctx.setLineDash([9,6]);ctx.strokeStyle='#f59e0b';ctx.lineWidth=2.5;ctx.beginPath();if(m=='Cascarones'){ctx.moveTo(X(ec),F.M/2);ctx.lineTo(X(ec),F.h-F.M/2)}else{ctx.moveTo(F.M/2,Y(ec));ctx.lineTo(F.w-F.M/2,Y(ec))}ctx.stroke();ctx.restore();
+ if($('riem').checked){const n=+$('nel').value,dd=(b-a)/n;ctx.fillStyle='rgba(220,38,38,.13)';ctx.strokeStyle='rgba(220,38,38,.7)';ctx.lineWidth=1;for(let i=0;i<n;i++){const xm=a+(i+.5)*dd,y1=Math.max(f(xm),g(xm)),y0=Math.min(f(xm),g(xm));ctx.fillRect(X(a+i*dd),Y(y1),X(a+(i+1)*dd)-X(a+i*dd),Y(y0)-Y(y1));ctx.strokeRect(X(a+i*dd),Y(y1),X(a+(i+1)*dd)-X(a+i*dd),Y(y0)-Y(y1))}}
  const cv=(arr,col,dash)=>{ctx.beginPath();xs.forEach((x,i)=>ctx[i?'lineTo':'moveTo'](X(x),Y(arr[i])));ctx.strokeStyle=col;ctx.lineWidth=3;ctx.setLineDash(dash);ctx.stroke();ctx.setLineDash([])};
  cv(ys,'#4f46e5',[]);if(m!='Discos')cv(gs,'#16a34a',[8,5]);
  const dx=(b-a)/40,lo=m!='Discos'?g(c):0,hi=f(c),rw=Math.max(3,X(c+dx/2)-X(c-dx/2));
@@ -292,7 +328,7 @@ function draw2d(){
  ctx.fillText('('+lab(c)+' ; '+lab(hi)+')',X(c)+9,Y(hi)-9);
  ctx.fillStyle='#4f46e5';ctx.fillText(m=='Arandelas'?'━ R(x) exterior':m=='Cascarones'?'━ f(x) superior':'━ f(x)',F.M+10,F.M/2+12);
  if(m!='Discos'){ctx.fillStyle='#16a34a';ctx.fillText(m=='Arandelas'?'╍ r(x) interior':'╍ g(x) inferior',F.M+10,F.M/2+28)}
- ctx.fillStyle='#dc2626';ctx.fillText(m=='Cascarones'?'▮ cascarón dx  ·  eje de giro: eje y':'▮ elemento dx  ·  eje de giro: eje x',F.M+10,F.M/2+(m!='Discos'?44:28))}
+ ctx.fillStyle='#dc2626';ctx.fillText(m=='Cascarones'?'▮ cascarón dx  ·  eje de giro: x = '+lab(ec):'▮ elemento dx  ·  eje de giro: y = '+lab(ec),F.M+10,F.M/2+(m!='Discos'?44:28))}
 const INT=(a,b)=>'<span class="int"><span class="sg">∫</span><span class="lm"><span>'+b+'</span><span>'+a+'</span></span></span>';
 const FR=(n,d)=>'<span class="fr"><span>'+n+'</span><span>'+d+'</span></span>';
 function pretty(s){
@@ -323,45 +359,116 @@ const STEPS=[
   [T4[2],'∫(6<i>x</i>² − 2<i>x</i>³) d<i>x</i> = '+FR(6,3)+'<i>x</i>³ − '+FR(2,4)+'<i>x</i>⁴ = 2<i>x</i>³ − '+FR(1,2)+'<i>x</i>⁴'],
   [T4[3],'<i>V</i> = 2π[ 2(3)³ − '+FR(1,2)+'(3)⁴ ] = 2π[ 54 − '+FR(81,2)+' ] = 2π·'+FR(27,2)+' = 27π ≈ <b>84,823002 cm³</b>']]];
 function drawProc(){
- const{m,fs,gs,Vref,u,e,preset,at,bt}=S,A=pretty(at),B=pretty(bt),pf=pretty(fs),pg=pretty(gs),k=EX.indexOf(e),L='<i>a</i>',H='<i>b</i>';let g,s;
- if(m=='Discos'){g='<i>V</i> = π '+INT(L,H)+' [<i>f</i>(<i>x</i>)]² d<i>x</i>';s='<i>V</i> = π '+INT(A,B)+' ('+pf+')² d<i>x</i>'}
- else if(m=='Arandelas'){g='<i>V</i> = π '+INT(L,H)+' ([<i>R</i>(<i>x</i>)]² − [<i>r</i>(<i>x</i>)]²) d<i>x</i>';s='<i>V</i> = π '+INT(A,B)+' [('+pf+')² − ('+pg+')²] d<i>x</i>'}
- else{g='<i>V</i> = 2π '+INT(L,H)+' <i>x</i>·[<i>f</i>(<i>x</i>) − <i>g</i>(<i>x</i>)] d<i>x</i>';s='<i>V</i> = 2π '+INT(A,B)+' <i>x</i>·[('+pf+') − ('+pg+')] d<i>x</i>'}
- let h='<div class="ph">Fórmula general</div><div class="fm">'+g+'</div><div class="ph">Sustituyendo tus datos</div><div class="fm">'+s+'</div>';
+ const{m,fs,gs,Vref,u,e,preset,at,bt,ec,ect}=S,A=pretty(at),B=pretty(bt),pf=pretty(fs),pg=pretty(gs),E0=pretty(ect),k=EX.indexOf(e),L='<i>a</i>',H='<i>b</i>',sh=Math.abs(ec)>1e-12,wash=m=='Arandelas'||(m=='Discos'&&sh),RR='[<i>R</i>(<i>x</i>)]² − [<i>r</i>(<i>x</i>)]²';let g,s,x2='';
+ if(m=='Cascarones'){const rx=sh?'|<i>x</i> − <i>c</i>|':'<i>x</i>',rs=sh?'|<i>x</i> − '+E0+'|':'<i>x</i>';g='<i>V</i> = 2π '+INT(L,H)+' '+rx+'·[<i>f</i>(<i>x</i>) − <i>g</i>(<i>x</i>)] d<i>x</i>';s='<i>V</i> = 2π '+INT(A,B)+' '+rs+'·[('+pf+') − ('+pg+')] d<i>x</i>'}
+ else if(!wash){g='<i>V</i> = π '+INT(L,H)+' [<i>f</i>(<i>x</i>)]² d<i>x</i>';s='<i>V</i> = π '+INT(A,B)+' ('+pf+')² d<i>x</i>'}
+ else if(!sh){g='<i>V</i> = π '+INT(L,H)+' ('+RR+') d<i>x</i>';s='<i>V</i> = π '+INT(A,B)+' [('+pf+')² − ('+pg+')²] d<i>x</i>'}
+ else{g='<i>V</i> = π '+INT(L,H)+' ('+RR+') d<i>x</i>';s='<i>V</i> = π '+INT(A,B)+' ([<i>R</i>(<i>x</i>)]² − [<i>r</i>(<i>x</i>)]²) d<i>x</i>'}
+ if(sh)x2='<div class="ph">Eje de giro desplazado ('+(m=='Cascarones'?'<i>x</i>':'<i>y</i>')+' = '+E0+')</div><div class="fm">'+(m=='Cascarones'?'<i>r</i>(<i>x</i>) = |<i>x</i> − '+E0+'|':'<i>R</i>(<i>x</i>) = máx(|<i>f</i> − '+E0+'|, |<i>g</i> − '+E0+'|) &nbsp;;&nbsp; <i>r</i>(<i>x</i>) = mín(|<i>f</i> − '+E0+'|, |<i>g</i> − '+E0+'|)'+(m=='Discos'?' &nbsp;;&nbsp; <i>g</i>(<i>x</i>) = 0':''))+'</div>';
+ let h='<div class="ph">Fórmula general</div><div class="fm">'+g+'</div>'+x2+'<div class="ph">Sustituyendo tus datos</div><div class="fm">'+s+'</div>';
  if(preset)h+='<div class="ph">Resolución analítica paso a paso</div>'+STEPS[k].map((p,i)=>'<div class="st"><h4>'+'abcd'[i]+') '+p[0]+'</h4><div class="fm">'+p[1]+'</div></div>').join('');
  if(preset&&e.adv)h+='<div class="ph">Justificación de la ventaja analítica</div><p class="tx">'+e.adv+'</p>';
  h+='<div class="ph">Resultado</div><div class="fm"><i>V</i> ≈ <b>'+fmt(Vref).replace('.',',')+' '+u+'³</b></div>';
  if(preset)h+='<div class="ph">Lógica del código empleado</div><p class="tx">'+e.code+'</p>';
  $('proc').innerHTML=h}
+let lastCSV='',lastTV='';
 function drawConv(){
- const Ns=[10,50,100,500,1000,5000],sv=Ns.map(n=>simpson(S.I,S.a,S.b,n)),er=Ns.map((n,i)=>errR(sv[i],S.Vref)),u=S.u+'³';
- $('tbl').innerHTML='<tr><th>N</th><th>Referencia ('+u+')</th><th>Simpson ('+u+')</th><th>Error relativo (%)</th></tr>'+Ns.map((n,i)=>'<tr><td>'+n+'</td><td>'+fmt(S.Vref)+'</td><td>'+fmt(sv[i])+'</td><td>'+fmt(er[i])+'</td></tr>').join('');
- const ys=er.map(v=>Math.max(v,1e-10)),lo=10**Math.floor(Math.log10(Math.min(...ys))),hi0=10**Math.ceil(Math.log10(Math.max(...ys))),hi=hi0>lo?hi0:lo*10;
- const F=frame($('pc'),10,5000,lo,hi,{xlog:1,ylog:1,xl:'Particiones N',yl:'Error relativo (%)'});if(!F)return;const{ctx,X,Y}=F;
- ctx.strokeStyle='#2563eb';ctx.lineWidth=2.5;ctx.beginPath();Ns.forEach((n,i)=>ctx[i?'lineTo':'moveTo'](X(n),Y(ys[i])));ctx.stroke();
- ctx.fillStyle='#2563eb';Ns.forEach((n,i)=>{ctx.beginPath();ctx.arc(X(n),Y(ys[i]),4,0,2*PI);ctx.fill()});F.done()}
-function render(){if(!S)return;$('vp').hidden=tab=='tp'||tab=='tc';document.querySelectorAll('.o3').forEach(el=>el.hidden=tab!='t3');if(tab=='t3')scene=buildScene();({t3:draw3d,t2:draw2d,tp:drawProc,tc:drawConv})[tab]()}
+ const Ns=[10,50,100,500,1000,5000],{I,a,b,Vref}=S,u=S.u+'³',V=[simpson,trap,midp].map(fn=>Ns.map(n=>fn(I,a,b,n))),E=V.map(r=>r.map(v=>errR(v,Vref)));
+ $('tbl').innerHTML='<tr><th>N</th><th>Referencia ('+u+')</th><th>Simpson ('+u+')</th><th>Error Simpson (%)</th><th>Error trapecio (%)</th><th>Error punto medio (%)</th></tr>'+Ns.map((n,i)=>'<tr><td>'+n+'</td><td>'+fmt(Vref)+'</td><td>'+fmt(V[0][i])+'</td><td>'+fmt(E[0][i])+'</td><td>'+fmt(E[1][i])+'</td><td>'+fmt(E[2][i])+'</td></tr>').join('');
+ lastCSV='N;Referencia;Simpson;Err Simpson %;Err Trapecio %;Err Punto medio %\n'+Ns.map((n,i)=>[n,fmt(Vref),fmt(V[0][i]),fmt(E[0][i]),fmt(E[1][i]),fmt(E[2][i])].join(';')).join('\n');
+ const all=E.flat().map(v=>Math.max(v,1e-10)),lo=10**Math.floor(Math.log10(Math.min(...all))),hi0=10**Math.ceil(Math.log10(Math.max(...all))),hi=hi0>lo?hi0:lo*10;
+ const F=frame($('pc'),10,5000,lo,hi,{xlog:1,ylog:1,xl:'Particiones N',yl:'Error relativo (%)'});if(!F)return;const{ctx,X,Y}=F,cols=['#4f46e5','#f59e0b','#10b981'],nm=['Simpson 1/3 · O(h⁴)','Trapecio · O(h²)','Punto medio · O(h²)'];
+ E.forEach((e,j)=>{ctx.strokeStyle=cols[j];ctx.fillStyle=cols[j];ctx.lineWidth=2.5;ctx.beginPath();Ns.forEach((n,i)=>ctx[i?'lineTo':'moveTo'](X(n),Y(Math.max(e[i],1e-10))));ctx.stroke();
+  Ns.forEach((n,i)=>{ctx.beginPath();ctx.arc(X(n),Y(Math.max(e[i],1e-10)),4,0,2*PI);ctx.fill()});ctx.font='12px system-ui';ctx.textAlign='left';ctx.fillText('● '+nm[j],X(10)+12,Y(hi)+18+j*18)});F.done()}
+function props(){
+ const{m,a,b,f,g,ec,Vref}=S,tp=x=>Math.max(f(x),g(x)),bt=x=>Math.min(f(x),g(x)),A=tanhSinh(x=>tp(x)-bt(x),a,b),xb=tanhSinh(x=>x*(tp(x)-bt(x)),a,b)/A,yb=tanhSinh(x=>.5*(tp(x)**2-bt(x)**2),a,b)/A;
+ const d=Math.abs((m=='Cascarones'?xb:yb)-ec),Vp=2*PI*d*A,df=(h,x)=>{const s=1e-6*(1+Math.abs(x));return(h(x+s)-h(x-s))/(2*s)};
+ const sf=h=>tanhSinh(x=>2*PI*Math.abs(m=='Cascarones'?x-ec:h(x)-ec)*Math.sqrt(1+df(h,x)**2),a,b),Sf=sf(f),Sg=sf(g);
+ const M=900,K=900,dxx=(b-a)/M,tops=[],bots=[];for(let i=0;i<M;i++){const xm=a+(i+.5)*dxx;tops.push(tp(xm));bots.push(bt(xm))}
+ const y0=Math.min(...bots),y1=Math.max(...tops),dy=(y1-y0)/K||1,dA=Math.min(Math.abs(a-ec),Math.abs(b-ec)),dB=Math.max(Math.abs(a-ec),Math.abs(b-ec));let alt=0;
+ for(let j=0;j<K;j++){const y=y0+(j+.5)*dy;
+  if(m=='Cascarones'){let lo=Infinity,hi=-Infinity;for(let i=0;i<M;i++)if(bots[i]<=y&&y<=tops[i]){const r=Math.abs(a+(i+.5)*dxx-ec);if(r<lo)lo=r;if(r>hi)hi=r}
+   if(isFinite(lo)){const rl=Math.max(dA,lo-dxx/2),rh=Math.min(dB,hi+dxx/2);alt+=PI*(rh*rh-rl*rl)*dy}}
+  else{let Lm=0;for(let i=0;i<M;i++)if(bots[i]<=y&&y<=tops[i])Lm+=dxx;alt+=2*PI*Math.abs(y-ec)*Lm*dy}}
+ return{A,xb,yb,d,Vp,Sf,Sg,alt}}
+function drawProp(){
+ const{m,u,Vref,ec,dens}=S,p=props(),sh=Math.abs(ec)>1e-12,f4=v=>fmt(v,6).replace('.',','),pc=v=>fmt(errR(v,Vref),4).replace('.',',')+' %';
+ const main=m=='Cascarones'?'Cascarones cilíndricos':(m=='Arandelas'||sh?'Arandelas':'Discos'),alt=m=='Cascarones'?'Arandelas (cortes horizontales, respecto a y)':'Cascarones (cortes horizontales, respecto a y)';
+ const note=Math.abs(p.alt-Vref)/Math.abs(Vref)>.02?'<p class="hint">El método alterno usa una cuadrícula numérica y puede diferir si los cortes de la región no son un solo tramo.</p>':'';
+ $('pv').innerHTML='<div class="ph">Verificación cruzada de métodos</div><table><tr><th>Método</th><th>Volumen ('+u+'³)</th><th>Diferencia vs. referencia</th></tr>'
+  +'<tr><td>'+main+' (método principal)</td><td>'+f4(Vref)+'</td><td>referencia</td></tr>'
+  +'<tr><td>'+alt+'</td><td>'+f4(p.alt)+'</td><td>'+pc(p.alt)+'</td></tr>'
+  +'<tr><td>Teorema de Pappus–Guldin: V = 2π·d·A</td><td>'+f4(p.Vp)+'</td><td>'+pc(p.Vp)+'</td></tr></table>'+note
+  +'<div class="ph">Propiedades de la región y del sólido</div><table><tr><th>Magnitud</th><th>Valor</th></tr>'
+  +'<tr><td>Área de la región A</td><td>'+f4(p.A)+' '+u+'²</td></tr>'
+  +'<tr><td>Centroide (x̄ ; ȳ)</td><td>('+f4(p.xb)+' ; '+f4(p.yb)+')</td></tr>'
+  +'<tr><td>Distancia d del centroide al eje de giro</td><td>'+f4(p.d)+' '+u+'</td></tr>'
+  +'<tr><td>Superficie generada por f(x)</td><td>'+f4(p.Sf)+' '+u+'²</td></tr>'
+  +'<tr><td>Superficie generada por g(x)'+(m=='Discos'?' (eje X)':'')+'</td><td>'+f4(p.Sg)+' '+u+'²</td></tr>'
+  +'<tr><td>Superficie curva total (sin tapas)</td><td>'+f4(p.Sf+p.Sg)+' '+u+'²</td></tr>'
+  +'<tr><td>Masa con densidad ρ = '+String(dens).replace('.',',')+'</td><td>'+f4(dens*Vref)+'</td></tr></table>';
+ lastTV='Volumen referencia: '+f4(Vref)+' '+u+'3\nMétodo alterno: '+f4(p.alt)+'\nPappus-Guldin: '+f4(p.Vp)+'\nÁrea: '+f4(p.A)+'\nCentroide: ('+f4(p.xb)+' ; '+f4(p.yb)+')\nSuperficie curva total: '+f4(p.Sf+p.Sg)+'\nMasa: '+f4(dens*Vref)}
+const nicenum=v=>{const r=Math.round(v);if(Math.abs(v-r)<1e-9)return String(r);const s=v*v,rs=Math.round(s);if(Math.abs(s-rs)<1e-8&&rs>0&&rs<1e6)return(v<0?'-':'')+'sqrt('+rs+')';return String(+v.toFixed(10))};
+function findRoots(){
+ const m=$('metodo').value,f=compile($('f').value),g=m!='Discos'?compile($('g').value):()=>0,h=x=>f(x)-g(x),n=6000,xs=lin(-30,30,n+1),R=[],fin=Number.isFinite;
+ const edge=(p,q)=>{for(let k=0;k<60;k++){const mid=(p+q)/2;if(fin(h(mid)))p=mid;else q=mid}return p};
+ let prev=h(xs[0]);if(prev===0)R.push(xs[0]);
+ for(let i=1;i<=n;i++){const y=h(xs[i]);
+  if(fin(prev)&&fin(y)){if(y===0)R.push(xs[i]);else if(prev!==0&&prev*y<0){let p=xs[i-1],q=xs[i],fp=prev;for(let k=0;k<70;k++){const mid=(p+q)/2,fm=h(mid);if(fp*fm<=0)q=mid;else{p=mid;fp=fm}}R.push((p+q)/2)}}
+  else if(fin(prev)&&!fin(y)){const p=edge(xs[i-1],xs[i]);if(Math.abs(h(p))<1e-6)R.push(p)}
+  else if(!fin(prev)&&fin(y)){const q=edge(xs[i],xs[i-1]);if(Math.abs(h(q))<1e-6)R.push(q)}
+  prev=y}
+ R.sort((p,q)=>p-q);const U=R.filter((v,i)=>i==0||Math.abs(v-R[i-1])>1e-6);
+ if(U.length<2){$('rmsg').textContent='No encontré al menos 2 intersecciones entre x = −30 y x = 30.';return}
+ const mid=(lim('a')+lim('b'))/2;let k=0;for(let i=0;i<U.length-1;i++)if(U[i]<=mid&&mid<=U[i+1]){k=i;break}
+ $('a').value=nicenum(U[k]);$('b').value=nicenum(U[k+1]);setRange(+$('cut').value);
+ $('rmsg').textContent='Intersecciones: x = '+U.slice(0,8).map(nicenum).join(' ; ')+'  →  límites a = '+nicenum(U[k])+', b = '+nicenum(U[k+1]);update()}
+let tt;function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)}
+function savePNG(id,name){const cv=$(id),t=document.createElement('canvas');t.width=cv.width;t.height=cv.height;const x=t.getContext('2d');x.fillStyle=css('--card');x.fillRect(0,0,t.width,t.height);x.drawImage(cv,0,0);
+ const a=document.createElement('a');a.download=name+'.png';a.href=t.toDataURL('image/png');document.body.appendChild(a);a.click();a.remove();toast('Imagen: '+name+'.png')}
+async function copyText(t,ok){try{await navigator.clipboard.writeText(t);toast(ok)}catch(x){try{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast(ok)}catch(y){toast('No se pudo copiar automáticamente')}}}
+const getState=()=>({e:+$('ej').value,m:$('metodo').value,f:$('f').value,g:$('g').value,a:$('a').value,b:$('b').value,ec:$('ec').value,u:$('u').value,N:+$('N').value,c:+$('cut').value,d:$('dens').value});
+function setState(s){$('ej').value=s.e;load();$('metodo').value=s.m;$('f').value=s.f;$('g').value=s.g;$('a').value=s.a;$('b').value=s.b;$('ec').value=s.ec;$('u').value=s.u;$('N').value=s.N;$('dens').value=s.d;setRange(s.c);update()}
+const enc=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const dec=t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';return JSON.parse(decodeURIComponent(escape(atob(t))))};
+function render(){if(!S)return;$('vp').hidden=tab=='tp'||tab=='tc'||tab=='tv';document.querySelectorAll('.o3').forEach(el=>el.hidden=tab!='t3');if(tab=='t3')scene=buildScene();({t3:draw3d,t2:draw2d,tp:drawProc,tc:drawConv,tv:drawProp})[tab]()}
 /* ---------- Eventos ---------- */
-document.querySelectorAll('#tabs button').forEach(bt=>bt.onclick=()=>{tab=bt.dataset.t;document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x==bt));['t3','t2','tp','tc'].forEach(id=>$(id).hidden=id!=tab);render()});
+const TABS=['t3','t2','tp','tc','tv'];
+document.querySelectorAll('#tabs button').forEach(bt=>bt.onclick=()=>{tab=bt.dataset.t;document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x==bt));TABS.forEach(id=>$(id).hidden=id!=tab);render()});
 $('ej').onchange=load;
-['metodo','f','g','u','N','cutOn','cut','open','op','rad','mesh','ex','ey','grid'].forEach(id=>$(id).addEventListener('input',update));
+['metodo','f','g','u','N','ec','dens','cutOn','cut','open','op','rad','mesh','ex','ey','grid','riem','nel'].forEach(id=>$(id).addEventListener('input',update));
 ['a','b'].forEach(id=>$(id).addEventListener('input',()=>{setRange(+$('cut').value);update()}));
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
 addEventListener('resize',render);
-{const cv=$('p3');let dr=null;
- cv.addEventListener('pointerdown',e=>{dr=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});
- cv.addEventListener('pointermove',e=>{if(!dr)return;cam.yaw+=(e.clientX-dr[0])*.008;cam.pit=Math.max(-1.5,Math.min(1.5,cam.pit+(e.clientY-dr[1])*.008));dr=[e.clientX,e.clientY];draw3d()});
- ['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,()=>{dr=null;cv.style.cursor='grab'}));
+{const cv=$('p3'),pts=new Map();let d0=0;const dist=()=>{const[p,q]=[...pts.values()];return Math.hypot(p[0]-q[0],p[1]-q[1])};
+ cv.addEventListener('pointerdown',e=>{pts.set(e.pointerId,[e.clientX,e.clientY]);cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing';if(pts.size==2)d0=dist()});
+ cv.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId))return;const o=pts.get(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY]);
+  if(pts.size==1){cam.yaw+=(e.clientX-o[0])*.008;cam.pit=Math.max(-1.5,Math.min(1.5,cam.pit+(e.clientY-o[1])*.008))}
+  else if(pts.size==2){const d=dist();if(d0>0)cam.zoom=Math.min(6,Math.max(.3,cam.zoom*d/d0));d0=d}
+  draw3d()});
+ ['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,e=>{pts.delete(e.pointerId);cv.style.cursor='grab'}));
  cv.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.min(6,Math.max(.3,cam.zoom*(e.deltaY<0?1.1:.9)));draw3d()},{passive:false})}
 $('rst').onclick=()=>{cam.pit=.45;cam.zoom=1;cam.yaw=S&&S.m=='Cascarones'?.7:.6;draw3d()};
 let auto=false;$('auto').onclick=()=>{auto=!auto;$('auto').classList.toggle('on',auto)};
-let playing=false,dir=1;
+let playing=false,dir=1,building=false,bn=1;
 $('play').onclick=()=>{playing=!playing;$('play').classList.toggle('on',playing);$('play').textContent=playing?'⏸ Pausar':'▶ Animar'};
+$('build').onclick=()=>{$('riem').checked=true;bn=1;$('nel').value=1;building=true;update()};
 const stepCut=d=>{const r=$('cut');r.value=Math.min(+r.max,Math.max(+r.min,+r.value+d*(+r.step)*5));update()};
 $('cm').onclick=()=>stepCut(-1);$('cp').onclick=()=>stepCut(1);
+$('roots').onclick=findRoots;
+$('png3').onclick=()=>savePNG('p3','solido-3d');$('png2').onclick=()=>savePNG('p2','region-2d');$('pngc').onclick=()=>savePNG('pc','convergencia');
+$('csv').onclick=()=>copyText(lastCSV,'Tabla copiada (separada por ;)');$('cpv').onclick=()=>copyText(lastTV,'Resultados copiados');
+$('share').onclick=()=>{const l=location.href.split('#')[0]+'#'+enc(getState());$('lnk').hidden=false;$('lnk').value=l;$('lnk').select();copyText(l,'Enlace copiado: abre el mismo cálculo')};
+$('theme').onclick=()=>{const r=document.documentElement,cur=r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.dataset.theme=cur=='dark'?'light':'dark';$('theme').textContent=r.dataset.theme=='dark'?'☀️ Modo claro':'🌙 Modo oscuro';render()};
+let hist=[];try{hist=JSON.parse(localStorage.getItem('rc3d_h')||'[]')}catch(x){}
+function renderHist(){const box=$('hl');box.innerHTML=hist.length?'':'<div class="hint">Sin cálculos guardados.</div>';hist.forEach(h=>{const b=document.createElement('button');b.className='hi';b.textContent=h.t;b.onclick=()=>setState(h.s);box.appendChild(b)})}
+$('hsave').onclick=()=>{if(!S)return;hist.unshift({s:getState(),t:EX[+$('ej').value].n.split(' —')[0]+' · '+$('f').value.slice(0,16)+' → V ≈ '+fmt(S.Vref,3)});hist=hist.slice(0,8);try{localStorage.setItem('rc3d_h',JSON.stringify(hist))}catch(x){}renderHist();toast('Cálculo guardado en el historial')};
+$('hclr').onclick=()=>{hist=[];try{localStorage.removeItem('rc3d_h')}catch(x){}renderHist()};
 (function loop(){if(S&&playing&&(tab=='t3'||tab=='t2')){const r=$('cut');let v=+r.value+dir*(r.max-r.min)/160;if(v>=+r.max){v=+r.max;dir=-1}if(v<=+r.min){v=+r.min;dir=1}r.value=v;sync();render()}
+ if(S&&building){bn+=.3;const r=$('nel');r.value=Math.round(bn);if(bn>=+r.max)building=false;sync();render()}
  if(auto&&tab=='t3'&&scene){cam.yaw+=.012;draw3d()}requestAnimationFrame(loop)})();
-load();
+renderHist();
+try{const t=location.hash.slice(1);if(t.length>12)setState(dec(t));else load()}catch(x){load()}
 </script>
 </body>
 </html>
